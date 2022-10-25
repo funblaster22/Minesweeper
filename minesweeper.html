@@ -7,6 +7,9 @@
     table {
         border: 1px solid black;
     }
+    .yay {
+        background-color: brown !important; /* Shows the tiles that have been automatically clicked, for debugging */
+    }
 </style>
 <link rel="icon" type="image/png" href="mine.png">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
@@ -33,21 +36,23 @@ function toggleAutosolve() {
 <input type='checkbox' checked onchange="toggleAutosolve()">Autosolve
 
 <script>
+// TODO: reports certain tiles as being more dangerous than they actually are
 const grid = {
   width: 10,
   height: 8
 };
 const bombs = 10;
 const table = document.getElementById('solution');
+const X = 'X';
 var solution = [
-['0','0','1','X','1','0','1','1','1','0'],
-['0','1','2','2','1','0','1','X','1','0'],
-['0','1','X','2','1','1','1','1','1','0'],
-['1','2','1','3','X','2','0','0','1','1'],
-['X','1','0','2','X','2','0','0','1','X'],
-['1','2','1','2','1','1','1','1','2','1'],
-['1','2','X','1','0','0','1','X','1','0'],
-['1','X','2','1','0','0','1','1','1','0'],
+[0,0,1,X,1,0,1,1,1,0],
+[0,1,2,2,1,0,1,X,1,0],
+[0,1,X,2,1,1,1,1,1,0],
+[1,2,1,3,X,2,0,0,1,1],
+[X,1,0,2,X,2,0,0,1,X],
+[1,2,1,2,1,1,1,1,2,1],
+[1,2,X,1,0,0,1,X,1,0],
+[1,X,2,1,0,0,1,1,1,0],
 ];
 
 var danger = [ // first and last rows not working
@@ -62,7 +67,7 @@ var danger = [ // first and last rows not working
 ];
 
 var check = [];
-    
+
 function generate(field) {
     for (var row = 1; row <= grid.height; row++) {
         var current = document.createElement("tr");
@@ -96,17 +101,30 @@ function generate(field) {
             cell.className += "column"+(column-1)+" row"+(row-1);
             current.appendChild(cell);
             cell.addEventListener('click', function(event) {
+                if (this.innerText === '0') return;
                 this.innerText = solution[this.coordX][this.coordY];
                 if (this.innerText == '') {
                     this.innerText = 0;
                 } else if (this.innerText == 'X') {
                     alert('You hit a bomb :(');
-                    location.reload();
+                    if (confirm("Retry?"))
+                        location.reload();
                 }
                 //danger[this.coordX][this.coordY] = parseInt(this.innerText);
-                danger[this.coordX][this.coordY] = 0;
+                danger[this.coordX][this.coordY] = 0;  // WARNING: THIS IS INORRRECECT NAMING
             
                 check.push([this.coordX, this.coordY]);
+                if (solution[this.coordX][this.coordY] === 0) {  // This automatically clicks surrounding tiles if the current one is zero
+                    // NOTE: for legacy purposes, x & y refer to the euclidean coordinate of the array
+                    addIfInBound(this.coordY+1, this.coordX);
+                    addIfInBound(this.coordY,   this.coordX+1);
+                    addIfInBound(this.coordY-1, this.coordX);
+                    addIfInBound(this.coordY,   this.coordX-1);
+                    addIfInBound(this.coordY+1, this.coordX+1);
+                    addIfInBound(this.coordY-1, this.coordX-1);
+                    addIfInBound(this.coordY+1, this.coordX-1);
+                    addIfInBound(this.coordY-1, this.coordX+1);
+                }
                 this.style.backgroundColor = 'white';
             
                 if (autosolve) {
@@ -118,6 +136,19 @@ function generate(field) {
 }
 generate(solution);
 generate(danger);
+
+function addIfInBound(x, y) {
+    // Bruh. This is so quirky. this.coordY is 1-indexed, while their classes are 0-indexed
+    //x--; y--; UPDATE: this is incorrect
+
+    // This is a new function and hense uses X & Y correctly
+    if (0 < x && x < grid.width && 
+    0 < y && y < grid.height) {
+        const elem = document.querySelectorAll(`.row${y}.column${x}`);
+        //elem.item(elem.length-1).classList.add("yay")
+        elem.item(elem.length-1).click();
+    }
+}
 
 function solve(target) {
     dump(check, 'check\n');
